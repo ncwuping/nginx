@@ -19,7 +19,7 @@ RUN rpm -i ${SRPM_URL} \
  && sed -e '131 a\    in_port_t                        default_port;' \
         -i /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/http/ngx_http_upstream.h \
  && tar -C /root/rpmbuild/SOURCES/ -zcf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz nginx-${NGINX_VERSION} \
- && rm -f /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION} \
+ && rm -rf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION} \
  && sed -e '115 a\    --add-module=/usr/src/nginx-upstream-fair \\' \
         -e '122,122s/$/& \\/' \
         -e '122 a\    --add-module=/usr/src/nginx-upstream-fair ' \
