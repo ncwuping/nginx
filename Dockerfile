@@ -18,9 +18,11 @@ RUN rpm -i ${SRPM_URL} \
         -i /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/http/ngx_http_upstream.h \
  && tar -C /root/rpmbuild/SOURCES/ -zcf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz nginx-${NGINX_VERSION} \
  && rm -rf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION} \
- && sed -e '115 a\    --add-module=/usr/src/nginx-upstream-fair \\' \
+ && mkdir -p /usr/src/headers-more-nginx-module \
+ && git clone https://github.com/openresty/headers-more-nginx-module.git /usr/src/headers-more-nginx-module \
+ && sed -e '115 a\    --add-module=/usr/src/nginx-upstream-fair \\\n    --add-module=/usr/src/headers-more-nginx-module \\' \
         -e '122,122s/$/& \\/' \
-        -e '122 a\    --add-module=/usr/src/nginx-upstream-fair ' \
+        -e '122 a\    --add-module=/usr/src/nginx-upstream-fair \\\n    --add-module=/usr/src/headers-more-nginx-module ' \
         -i /root/rpmbuild/SPECS/nginx.spec \
  && rpmbuild -ba /root/rpmbuild/SPECS/nginx.spec
  
