@@ -10,19 +10,19 @@ RUN yum makecache fast \
  && rm -rf /var/cache/yum
 
 RUN rpm -i ${SRPM_URL} \
- && mkdir -p /usr/src/nginx-upstream-fair \
- && git clone https://github.com/gnosek/nginx-upstream-fair.git /usr/src/nginx-upstream-fair \
  && tar zxf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz -C /root/rpmbuild/SOURCES/ \
  && rm -f /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz \
+ && mkdir -p /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/nginx-upstream-fair \
+ && git clone https://github.com/gnosek/nginx-upstream-fair.git /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/nginx-upstream-fair \
+ && mkdir -p /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/headers-more-nginx-module \
+ && git clone https://github.com/openresty/headers-more-nginx-module.git /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/headers-more-nginx-module \
  && sed -e '131 a\    in_port_t                        default_port;' \
         -i /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/http/ngx_http_upstream.h \
- && tar -C /root/rpmbuild/SOURCES/ -zcf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz nginx-${NGINX_VERSION} \
+ && tar zcf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz -C /root/rpmbuild/SOURCES/ nginx-${NGINX_VERSION} \
  && rm -rf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION} \
- && mkdir -p /usr/src/headers-more-nginx-module \
- && git clone https://github.com/openresty/headers-more-nginx-module.git /usr/src/headers-more-nginx-module \
- && sed -e '115 a\    --add-module=/usr/src/nginx-upstream-fair \\\n    --add-module=/usr/src/headers-more-nginx-module \\' \
+ && sed -e '115 a\    --add-module=src/nginx-upstream-fair \\\n    --add-module=src/headers-more-nginx-module \\' \
         -e '122,122s/$/& \\/' \
-        -e '122 a\    --add-module=/usr/src/nginx-upstream-fair \\\n    --add-module=/usr/src/headers-more-nginx-module ' \
+        -e '122 a\    --add-module=src/nginx-upstream-fair \\\n    --add-module=src/headers-more-nginx-module' \
         -i /root/rpmbuild/SPECS/nginx.spec \
  && rpmbuild -ba /root/rpmbuild/SPECS/nginx.spec
  
@@ -131,8 +131,9 @@ RUN openssl_zlib_pcre_extras=' \
  && rm -rf /var/cache/yum
  
  
- FROM centos:7
+FROM centos:7
  
- ENV NGINX_VERSION 1.16.1
+ENV NGINX_VERSION 1.16.1
  
- COPY --from=builder /root/rpmbuild/RPMS/x86_64/nginx-${NGINX_VERSION}-1.el7.ngx.x86_64.rpm .
+COPY --from=builder /root/rpmbuild/RPMS/x86_64/nginx-${NGINX_VERSION}-1.el7.ngx.x86_64.rpm .
+COPY --from=builder /root/rpmbuild/SRPMS/nginx-${NGINX_VERSION}-1.el7.ngx.src.rpm .
