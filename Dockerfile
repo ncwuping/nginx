@@ -21,7 +21,7 @@ RUN rpm -i ${SRPM_URL} \
  && tar zcf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz -C /root/rpmbuild/SOURCES/ nginx-${NGINX_VERSION} \
  && rm -rf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION} \
  && sed -e '115 a\    --add-module=src/nginx-upstream-fair \\\n    --add-module=src/headers-more-nginx-module \\' \
-        -e '122,122s/$/& \\/' \
+        -e '122 s/$/& \\/' \
         -e '122 a\    --add-module=src/nginx-upstream-fair \\\n    --add-module=src/headers-more-nginx-module' \
         -i /root/rpmbuild/SPECS/nginx.spec \
  && rpmbuild -ba /root/rpmbuild/SPECS/nginx.spec
