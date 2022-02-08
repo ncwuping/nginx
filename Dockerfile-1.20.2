@@ -1,0 +1,83 @@
+FROM centos:7 as builder
+
+RUN yum makecache fast \
+ && yum groupinstall Development tools -y \
+ && yum install openssl-devel zlib-devel pcre-devel -y \
+ && yum clean all -y \
+ && rm -rf /var/cache/yum
+
+ENV NGINX_VERSION="1.20.2"
+ENV SRPM_URL="http://nginx.org/packages/centos/7/SRPMS/nginx-${NGINX_VERSION}-1.el7.ngx.src.rpm"
+ENV GITHUB_URL="https://github.com.cnpmjs.org"
+
+RUN rpm -i ${SRPM_URL} \
+ && tar zxf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz -C /root/rpmbuild/SOURCES/ \
+ && rm -f /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz \
+ && mkdir -p /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/nginx-upstream-fair \
+ && git clone ${GITHUB_URL}/gnosek/nginx-upstream-fair.git /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/nginx-upstream-fair \
+ && mkdir -p /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/headers-more-nginx-module \
+ && git clone ${GITHUB_URL}/openresty/headers-more-nginx-module.git /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/headers-more-nginx-module \
+ && sed -e '131 a\    in_port_t                        default_port;' \
+        -i /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/http/ngx_http_upstream.h \
+ && tar zcf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz -C /root/rpmbuild/SOURCES/ nginx-${NGINX_VERSION} \
+ && rm -rf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION} \
+ && sed -e '113 a\    --add-module=src/nginx-upstream-fair \\\n    --add-module=src/headers-more-nginx-module \\' \
+        -e '120s/$/& \\/' \
+        -e '120 a\    --add-module=src/nginx-upstream-fair \\\n    --add-module=src/headers-more-nginx-module' \
+        -i /root/rpmbuild/SPECS/nginx.spec \
+ && rpmbuild -ba /root/rpmbuild/SPECS/nginx.spec
+
+ENV LUAJIT_VERSION="2.1" LUAJIT_DATE_VERSION="20211210"
+ENV LUA_RESTY_CORE_VERSION="0.1.22" LUA_RESTY_LRUCACHE_VERSION="0.11"
+ENV LUAJIT_INC="/usr/include/luajit-${LUAJIT_VERSION}" LUAJIT_LIB="/usr/lib64"
+
+RUN mkdir -p luajit-rpm \
+ && git clone -b "${LUAJIT_VERSION}.${LUAJIT_DATE_VERSION}-1" ${GITHUB_URL}/hnakamur/luajit-rpm.git luajit-rpm \
+ && mv -f luajit-rpm/SPECS/luajit.spec /root/rpmbuild/SPECS/ \
+ && rm -rf luajit-rpm \
+ && curl -o /root/rpmbuild/SOURCES/luajit2-${LUAJIT_VERSION}-${LUAJIT_DATE_VERSION}.tar.gz -L ${GITHUB_URL}/openresty/luajit2/archive/v${LUAJIT_VERSION}-${LUAJIT_DATE_VERSION}.tar.gz \
+ && rpmbuild -ba /root/rpmbuild/SPECS/luajit.spec \
+ && yum localinstall /root/rpmbuild/RPMS/x86_64/{luajit-${LUAJIT_VERSION}.${LUAJIT_DATE_VERSION}-1.el7.x86_64.rpm,luajit-devel-${LUAJIT_VERSION}.${LUAJIT_DATE_VERSION}-1.el7.x86_64.rpm} -y \
+ && curl -o lua-resty-core-${LUA_RESTY_CORE_VERSION}.tar.gz -L ${GITHUB_URL}/openresty/lua-resty-core/archive/v${LUA_RESTY_CORE_VERSION}.tar.gz \
+ && tar zxf lua-resty-core-${LUA_RESTY_CORE_VERSION}.tar.gz \
+ && rm -f lua-resty-core-${LUA_RESTY_CORE_VERSION}.tar.gz \
+ && cd lua-resty-core-${LUA_RESTY_CORE_VERSION} \
+ && make install PREFIX=/usr \
+ && cd - \
+ && rm -rf lua-resty-core-${LUA_RESTY_CORE_VERSION} \
+ && curl -o lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION}.tar.gz -L ${GITHUB_URL}/openresty/lua-resty-lrucache/archive/v${LUA_RESTY_LRUCACHE_VERSION}.tar.gz \
+ && tar zxf lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION}.tar.gz \
+ && rm -f lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION}.tar.gz \
+ && cd lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION} \
+ && make install PREFIX=/usr \
+ && cd - \
+ && rm -rf lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION}
+
+RUN tar zxf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz -C /root/rpmbuild/SOURCES/ \
+ && mkdir -p /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/ngx_devel_kit \
+ && git clone -b v0.3.1 ${GITHUB_URL}/vision5/ngx_devel_kit.git /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/ngx_devel_kit \
+ && mkdir -p /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/lua-nginx-module \
+ && git clone -b v0.10.20 ${GITHUB_URL}/openresty/lua-nginx-module.git /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}/src/lua-nginx-module \
+ && tar zcf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz -C /root/rpmbuild/SOURCES/ nginx-${NGINX_VERSION} \
+ && rm -rf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION} \
+ && sed -e '60 s/ngx/ngx_lua/' \
+        -e '115 a\    --add-module=src/ngx_devel_kit \\\n    --add-module=src/lua-nginx-module \\' \
+        -e '124 s/$/& \\/' \
+        -e '124 a\    --add-module=src/ngx_devel_kit \\\n    --add-module=src/lua-nginx-module' \
+		-e '153 i\sed '"'"'$i\\\\n    lua_package_path "/usr/lib/lua/?.lua";'"'"' -i $RPM_BUILD_ROOT%{_sysconfdir}/nginx/nginx.conf' \
+		-e '186 a\%{__cp} -a %{_libdir}/libluajit-*.so.* $RPM_BUILD_ROOT%{_libdir}\n%{__cp} -a /usr/lib/lua $RPM_BUILD_ROOT/usr/lib\n' \
+		-e '205 a\\n%{_libdir}/libluajit-*.so.*\n\n%dir /usr/lib/lua\n%dir /usr/lib/lua/ngx\n/usr/lib/lua/ngx/*.lua\n%dir /usr/lib/lua/ngx/ssl\n/usr/lib/lua/ngx/ssl/*.lua\n%dir /usr/lib/lua/resty\n/usr/lib/lua/resty/*.lua\n%dir /usr/lib/lua/resty/core\n/usr/lib/lua/resty/core/*.lua\n%dir /usr/lib/lua/resty/lrucache\n/usr/lib/lua/resty/lrucache/*.lua\n' \
+        -i /root/rpmbuild/SPECS/nginx.spec \
+ && rpmbuild -ba /root/rpmbuild/SPECS/nginx.spec
+ 
+FROM centos:7
+ 
+ENV LUAJIT_VERSION="2.1" LUAJIT_DATE_VERSION="20211210" NGINX_VERSION="1.20.2"
+
+COPY --from=builder /root/rpmbuild/RPMS/x86_64/nginx-${NGINX_VERSION}-1.el7.ngx.x86_64.rpm .
+COPY --from=builder /root/rpmbuild/SRPMS/nginx-${NGINX_VERSION}-1.el7.ngx.src.rpm .
+COPY --from=builder /root/rpmbuild/SRPMS/luajit-${LUAJIT_VERSION}.${LUAJIT_DATE_VERSION}-1.el7.src.rpm .
+COPY --from=builder /root/rpmbuild/RPMS/x86_64/luajit-${LUAJIT_VERSION}.${LUAJIT_DATE_VERSION}-1.el7.x86_64.rpm .
+COPY --from=builder /root/rpmbuild/RPMS/x86_64/luajit-devel-${LUAJIT_VERSION}.${LUAJIT_DATE_VERSION}-1.el7.x86_64.rpm .
+COPY --from=builder /root/rpmbuild/SRPMS/nginx-${NGINX_VERSION}-1.el7.ngx_lua.src.rpm .
+COPY --from=builder /root/rpmbuild/RPMS/x86_64/nginx-${NGINX_VERSION}-1.el7.ngx_lua.x86_64.rpm .
