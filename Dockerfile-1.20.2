@@ -64,7 +64,7 @@ RUN tar zxf /root/rpmbuild/SOURCES/nginx-${NGINX_VERSION}.tar.gz -C /root/rpmbui
         -e '115 a\    --add-module=src/ngx_devel_kit \\\n    --add-module=src/lua-nginx-module \\' \
         -e '124 s/$/& \\/' \
         -e '124 a\    --add-module=src/ngx_devel_kit \\\n    --add-module=src/lua-nginx-module' \
-        -e '153 i\sed '"'"'$i\\\\n    lua_package_path "/usr/lib/lua/?.lua";'"'"' -i $RPM_BUILD_ROOT%{_sysconfdir}/nginx/nginx.conf' \
+        -e '153 i\sed '"'"'$i\\\\n    lua_package_path "/usr/lib/lua/?.lua;;";'"'"' -i $RPM_BUILD_ROOT%{_sysconfdir}/nginx/nginx.conf' \
         -e '186 a\%{__cp} -a %{_libdir}/libluajit-*.so.* $RPM_BUILD_ROOT%{_libdir}\n%{__cp} -a /usr/lib/lua $RPM_BUILD_ROOT/usr/lib\n' \
         -e '205 a\\n%{_libdir}/libluajit-*.so.*\n\n%dir /usr/lib/lua\n%dir /usr/lib/lua/ngx\n/usr/lib/lua/ngx/*.lua\n%dir /usr/lib/lua/ngx/ssl\n/usr/lib/lua/ngx/ssl/*.lua\n%dir /usr/lib/lua/resty\n/usr/lib/lua/resty/*.lua\n%dir /usr/lib/lua/resty/core\n/usr/lib/lua/resty/core/*.lua\n%dir /usr/lib/lua/resty/lrucache\n/usr/lib/lua/resty/lrucache/*.lua\n' \
         -i /root/rpmbuild/SPECS/nginx.spec \
